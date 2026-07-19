@@ -2,7 +2,7 @@
 type: capability
 capability_id: manage-reusable-ai-capabilities
 domain: knowledge-and-automation
-status: tested
+status: stable
 trigger_phrases:
   - 沉淀这次能力
   - 复用之前的做法
@@ -20,7 +20,7 @@ tools:
   - Dataview
   - Templater
   - Codex Skills
-success_count: 1
+success_count: 2
 last_verified: 2026-07-19
 skill_path:
 tags:
@@ -45,12 +45,13 @@ tags:
 ## 执行
 
 1. 阅读 [[workflows/能力沉淀与复用流程]]。
-2. 判断是否满足沉淀条件，过滤简单问答和敏感数据。
-3. 使用 [[templates/执行记录模板]] 保存实际结果与验证。
-4. 搜索现有能力卡，选择更新或新建。
-5. 将事实、来源、决策和项目分别归档，不全部塞入能力卡。
-6. 更新成功次数、最近验证日期、失败模式和成熟度。
-7. 达到 `skill-candidate` 后，确认安装位置并使用 `skill-creator`。
+2. 按 [[workflows/新能力接入与维护指南]] 完成接入检查清单。
+3. 判断是否满足沉淀条件，过滤简单问答和敏感数据。
+4. 使用 [[templates/执行记录模板]] 保存实际结果与验证。
+5. 搜索现有能力卡，选择更新或新建。
+6. 将事实、来源、决策和项目分别归档，不全部塞入能力卡。
+7. 更新成功次数、最近验证日期、失败模式和成熟度。
+8. 达到 `skill-candidate` 后，确认安装位置并使用 `skill-creator`。
 
 ## 验证
 
@@ -73,4 +74,5 @@ tags:
 ## 证据
 
 - [[runs/2026-07-19 建立通用 AI 能力资产库]]
+- [[runs/2026-07-19 新能力维护流程文档化]]
 - [[decisions/2026-07-19 Obsidian 管理能力来源并由 Skill 执行]]
