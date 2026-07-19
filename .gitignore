@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Obsidian device-local state and caches
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.trash/
+
+# Generated media can be large; keep its notes and metadata in Git.
+assets/audio/*
+!assets/audio/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+*~
