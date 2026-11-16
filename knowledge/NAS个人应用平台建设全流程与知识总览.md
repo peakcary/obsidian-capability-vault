@@ -3,7 +3,7 @@ type: knowledge
 knowledge_type: infrastructure-overview
 verification: 基于会话实测与官方文档，部分生命周期待验收
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-11-11
 tags: [NAS, UGOS, ARM64, Docker, frp, HTTPS, security, knowledge-hub]
 ---
 
@@ -233,3 +233,9 @@ NAS frpc 主动连接云端 frps；业务映射只绑定云端回环地址，再
 - [知识图谱部署说明](/Users/ompeak/work/github/pikecode/cn-math-taxonomy/deploy/nas/README.md)
 
 这些链接指向文档，不链接或复制实际凭证文件、私钥、令牌或私人原始数据。能力成熟度按各卡片证据保留，未自动晋级为 Codex Skill。
+
+## 2026-11-11 增量：家庭媒体中心
+
+家庭媒体中心已建立独立测试库基础版，https://media.ompeak.com/ 的证书、认证与真实文件操作通过，用户确认可连接。复用既有 frps/Nginx/HTTPS，新增回环映射 19868 和独立客户端，原 music/math 入口仍返回原登录要求。当前仍为普通用户临时进程；Docker 镜像与切换脚本已交付，待用户输入 sudo 密码后执行容器上线及持久化验收。未接入正式媒体库，未验证设备重启。
+
+执行证据、具体 sudo 命令与维护边界见 [[runs/2026-11-11-家庭媒体中心HTTPS与Docker交付]]。此前历史验证状态不因此自动升级。
