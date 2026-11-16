@@ -1,0 +1,140 @@
+---
+type: knowledge
+knowledge_type: 工具脚本
+tags:
+  - knowledge
+  - python
+  - music
+  - lyrics
+period: 2026
+verification: verified
+---
+
+# 批量下载音乐歌词脚本
+
+## 概述
+
+给定一个音乐文件夹，自动识别文件名中的歌手和歌名，从多个数据源下载 `.lrc` 格式歌词，保存为同名文件。
+
+- **华语歌默认源**：网易云 → QQ音乐 → 酷狗（无需任何配置）
+- **国外歌可选源**：LRCLIB（需代理）、Musixmatch（需 API key）
+
+## 脚本位置
+
+```
+/Users/peakom/Downloads/download_lyrics.py
+```
+
+**附件：** [[download_lyrics.py]]
+
+## 用法
+
+```bash
+# 华语歌（默认，无需额外参数）
+python3 download_lyrics.py /path/to/music
+
+# 国外歌，启用 LRCLIB（需代理）
+python3 download_lyrics.py /music --lrclib --no-cn --proxy 127.0.0.1:7890
+
+# 国外歌，启用 Musixmatch
+python3 download_lyrics.py /music --musixmatch YOUR_API_KEY --no-cn
+
+# 全源（华语 + 国外）
+python3 download_lyrics.py /music --lrclib --musixmatch YOUR_API_KEY
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--lrclib` | 启用 LRCLIB（国外歌，国内需代理）|
+| `--musixmatch KEY` | 启用 Musixmatch，传入 API key |
+| `--no-cn` | 禁用中文三源（纯国外模式）|
+| `--proxy HOST:PORT` | 设置 HTTP 代理，如 `127.0.0.1:7890` |
+
+## 核心逻辑
+
+### 文件名解析规则
+
+文件名格式为 `歌手-歌名.wav`，脚本自动拆分：
+
+```
+beyond-光辉岁月.wav  →  artist=beyond  title=光辉岁月
+周杰伦-青花瓷.wav    →  artist=周杰伦  title=青花瓷
+```
+
+括号注释（如 `(live)` `(dj版)` `[粤语]`）会在搜索前自动去除。
+
+### 多源互补策略
+
+| 顺序 | 数据源 | 优点 |
+|------|--------|------|
+| 1 | 网易云音乐 | 华语最全，LRC 质量高 |
+| 2 | QQ 音乐 | 华语覆盖广，互补网易云 |
+| 3 | 酷狗音乐 | 老歌覆盖好，进一步兜底 |
+
+找到即止，三源均失败才标记为失败。
+
+### 容错机制
+
+- 已存在 `.lrc` 文件自动跳过（可中断重跑）
+- 每源最多重试 2 次
+- 请求间隔 0.4 秒，防止被限速
+- 失败歌曲记录到 `_lyrics_failed.txt`
+
+## 支持的音频格式
+
+`.wav` `.mp3` `.flac` `.m4a` `.ape` `.ogg` `.wma`
+
+## API 接入方式
+
+### 网易云音乐
+
+```
+搜索: GET https://music.163.com/api/search/get?s={keyword}&type=1&limit=5
+歌词: GET https://music.163.com/api/song/lyric?id={song_id}&lv=1
+Referer: https://music.163.com/
+```
+
+### QQ 音乐
+
+```
+搜索: GET https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w={keyword}&format=json
+歌词: GET https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid={songmid}&format=json
+注意: 歌词内容为 base64 编码，需解码
+Referer: https://y.qq.com/
+```
+
+### 酷狗音乐
+
+```
+搜索: GET http://mobilecdn.kugou.com/api/v3/search/song?keyword={keyword}&pagesize=5
+歌词: GET http://krcs.kugou.com/lyric?id={hash}&client=pc&format=lrc
+注意: 搜索返回 hash 字段，作为歌词接口的 id；歌词为 base64 编码
+```
+
+### LRCLIB（国外歌，启用需代理）
+
+官网：https://lrclib.net  
+开放免费，无需注册，无需 API Key。
+
+```
+搜索: GET https://lrclib.net/api/search?artist_name={artist}&track_name={title}
+返回: JSON 数组，取第一条的 syncedLyrics（LRC）或 plainLyrics（纯文本）
+注意: 国内无法直连，需配合 --proxy 参数使用
+```
+
+### Musixmatch（国外歌，需注册免费 API key）
+
+注册地址：https://developer.musixmatch.com  
+免费版每日 2000 次请求，仅返回歌词前 30%（付费版无限制）。
+
+```
+搜索+歌词: GET https://api.musixmatch.com/ws/1.1/matcher.lyrics.get
+           ?q_artist={artist}&q_track={title}&apikey={key}&format=json
+注意: 免费版返回纯文本，脚本会自动转换为简单 LRC 格式（时间轴为估算值）
+```
+
+## 注意事项
+
+- 上述 API 均为非官方接口，接口格式可能随时失效
+- 如某源失效，注释掉 `SOURCES` 列表中对应项即可
+- 纯工具类脚本，无需安装任何第三方依赖（仅用标准库）

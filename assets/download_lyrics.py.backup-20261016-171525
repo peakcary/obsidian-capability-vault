@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+"""
+批量下载歌词脚本 - 多源互补
+默认源: 网易云 / QQ音乐 / 酷狗（华语歌）
+可选源: LRCLIB / Musixmatch（国外歌，需代理或 API key）
+
+用法:
+  python3 download_lyrics.py [音乐文件夹路径] [选项]
+
+选项:
+  --lrclib              启用 LRCLIB（国外歌，需代理）
+  --musixmatch KEY      启用 Musixmatch，需传入 API key
+  --no-cn               禁用中文三源（纯国外模式）
+  --proxy HOST:PORT     设置 HTTP 代理，如 127.0.0.1:7890
+
+示例:
+  # 华语歌（默认）
+  python3 download_lyrics.py /music
+
+  # 国外歌，走代理
+  python3 download_lyrics.py /music --lrclib --no-cn --proxy 127.0.0.1:7890
+
+  # 全源（华语+国外）
+  python3 download_lyrics.py /music --lrclib --musixmatch YOUR_KEY
+"""
+
+import os
+import re
+import sys
+import time
+import json
+import random
+import base64
+import argparse
+import urllib.request
+import urllib.parse
+from pathlib import Path
+
+# ========== 配置 ==========
+DEFAULT_DIR = "/Users/peakom/Downloads/热门歌手成名代表作"
+DELAY = 0.4
+TIMEOUT = 12
+MAX_RETRY = 2
+AUDIO_EXT = (".wav", ".mp3", ".flac", ".m4a", ".ape", ".ogg", ".wma")
+
+UA_LIST = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+]
+
+# 全局代理（由 --proxy 参数设置）
+_proxy_opener = None
+
+
+# ========== 工具函数 ==========
+
+def setup_proxy(host_port):
+    global _proxy_opener
+    proxy = urllib.request.ProxyHandler({"http": f"http://{host_port}", "https": f"http://{host_port}"})
+    _proxy_opener = urllib.request.build_opener(proxy)
+
+
+def http_get(url, headers=None, timeout=TIMEOUT):
+    h = {"User-Agent": random.choice(UA_LIST)}
+    if headers:
+        h.update(headers)
+    req = urllib.request.Request(url, headers=h)
+    opener = _proxy_opener or urllib.request.build_opener()
+    with opener.open(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="ignore")
+
+
+def parse_filename(filename):
+    name = Path(filename).stem
+    name = re.sub(r"\s*\(.*?\)\s*", "", name)
+    name = re.sub(r"\s*\[.*?\]\s*", "", name)
+    if "-" in name:
+        parts = name.split("-", 1)
+        return parts[0].strip(), parts[1].strip()
+    return "", name.strip()
+
+
+def clean_lrc(text):
+    if not text:
+        return None
+    lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+    return "\n".join(lines) if lines else None
+
+
+# ========== 数据源 1: 网易云音乐 ==========
+
+def fetch_netease(artist, title):
+    try:
+        kw = urllib.parse.quote(f"{artist} {title}".strip())
+        data = json.loads(http_get(
+            f"https://music.163.com/api/search/get?s={kw}&type=1&limit=5",
+            {"Referer": "https://music.163.com/"}
+        ))
+        songs = data.get("result", {}).get("songs", [])
+        if not songs:
+            return None
+        sid = songs[0]["id"]
+        data2 = json.loads(http_get(
+            f"https://music.163.com/api/song/lyric?id={sid}&lv=1&kv=1&tv=-1",
+            {"Referer": "https://music.163.com/"}
+        ))
+        return clean_lrc(data2.get("lrc", {}).get("lyric", ""))
+    except Exception:
+        return None
+
+
+# ========== 数据源 2: QQ音乐 ==========
+
+def fetch_qq(artist, title):
+    try:
+        kw = urllib.parse.quote(f"{artist} {title}".strip())
+        data = json.loads(http_get(
+            f"https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w={kw}&format=json&n=5&p=1&cr=1&g_tk=5381",
+            {"Referer": "https://y.qq.com/"}
+        ))
+        songs = data.get("data", {}).get("song", {}).get("list", [])
+        if not songs:
+            return None
+        mid = songs[0]["songmid"]
+        data2 = json.loads(http_get(
+            f"https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid={mid}&format=json&nobase64=1",
+            {"Referer": "https://y.qq.com/"}
+        ))
+        lrc_b64 = data2.get("lyric", "")
+        if not lrc_b64:
+            return None
+        return clean_lrc(base64.b64decode(lrc_b64).decode("utf-8", errors="ignore"))
+    except Exception:
+        return None
+
+
+# ========== 数据源 3: 酷狗音乐 ==========
+
+def fetch_kugou(artist, title):
+    try:
+        kw = urllib.parse.quote(f"{artist} {title}".strip())
+        data = json.loads(http_get(
+            f"http://mobilecdn.kugou.com/api/v3/search/song?keyword={kw}&page=1&pagesize=5&format=json"
+        ))
+        songs = data.get("data", {}).get("info", [])
+        if not songs:
+            return None
+        h = songs[0]["hash"]
+        data2 = json.loads(http_get(
+            f"http://krcs.kugou.com/lyric?id={h}&accesschain=&client=pc&format=lrc"
+        ))
+        content = data2.get("content", "")
+        if not content:
+            return None
+        return clean_lrc(base64.b64decode(content).decode("utf-8", errors="ignore"))
+    except Exception:
+        return None
+
+
+# ========== 数据源 4: LRCLIB（国外歌，需代理）==========
+
+def fetch_lrclib(artist, title):
+    try:
+        params = urllib.parse.urlencode({
+            "artist_name": artist,
+            "track_name": title,
+        })
+        data = json.loads(http_get(
+            f"https://lrclib.net/api/search?{params}",
+            {"Accept": "application/json"}
+        ))
+        if not data:
+            return None
+        # 优先取有时间轴的 syncedLyrics
+        for item in data:
+            lrc = item.get("syncedLyrics") or item.get("plainLyrics")
+            if lrc:
+                return clean_lrc(lrc)
+        return None
+    except Exception:
+        return None
+
+
+# ========== 数据源 5: Musixmatch（国外歌，需 API key）==========
+
+_musixmatch_key = None
+
+
+def fetch_musixmatch(artist, title):
+    if not _musixmatch_key:
+        return None
+    try:
+        params = urllib.parse.urlencode({
+            "q_artist": artist,
+            "q_track": title,
+            "apikey": _musixmatch_key,
+            "format": "json",
+        })
+        data = json.loads(http_get(f"https://api.musixmatch.com/ws/1.1/matcher.lyrics.get?{params}"))
+        body = data.get("message", {}).get("body", {})
+        lyrics_text = body.get("lyrics", {}).get("lyrics_body", "")
+        if not lyrics_text or "****" in lyrics_text:
+            return None
+        # Musixmatch 免费版只返回纯文本，包装成简单 LRC
+        lines = [l for l in lyrics_text.strip().splitlines() if l.strip()]
+        lrc_lines = [f"[{i//60:02d}:{i%60:02d}.00] {line}" for i, line in enumerate(lines)]
+        return "\n".join(lrc_lines)
+    except Exception:
+        return None
+
+
+# ========== 主流程 ==========
+
+def build_sources(use_cn, use_lrclib, musixmatch_key):
+    global _musixmatch_key
+    _musixmatch_key = musixmatch_key
+
+    sources = []
+    if use_cn:
+        sources += [
+            ("网易云", fetch_netease),
+            ("QQ音乐", fetch_qq),
+            ("酷狗",   fetch_kugou),
+        ]
+    if use_lrclib:
+        sources.append(("LRCLIB", fetch_lrclib))
+    if musixmatch_key:
+        sources.append(("Musixmatch", fetch_musixmatch))
+    return sources
+
+
+def download_one(filepath, sources):
+    artist, title = parse_filename(os.path.basename(filepath))
+    lrc_path = str(Path(filepath).with_suffix(".lrc"))
+
+    for src_name, fetcher in sources:
+        for _ in range(MAX_RETRY):
+            try:
+                lrc = fetcher(artist, title)
+                if lrc and len(lrc) > 20:
+                    with open(lrc_path, "w", encoding="utf-8") as f:
+                        f.write(lrc)
+                    return "ok", src_name
+            except Exception:
+                pass
+            time.sleep(DELAY)
+    return "fail", None
+
+
+def main():
+    parser = argparse.ArgumentParser(description="批量下载歌词")
+    parser.add_argument("dir", nargs="?", default=DEFAULT_DIR, help="音乐文件夹路径")
+    parser.add_argument("--lrclib", action="store_true", help="启用 LRCLIB（国外歌，需代理）")
+    parser.add_argument("--musixmatch", metavar="KEY", help="启用 Musixmatch，传入 API key")
+    parser.add_argument("--no-cn", action="store_true", help="禁用中文三源")
+    parser.add_argument("--proxy", metavar="HOST:PORT", help="HTTP 代理，如 127.0.0.1:7890")
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.dir):
+        print(f"错误: 文件夹不存在: {args.dir}")
+        sys.exit(1)
+
+    if args.proxy:
+        setup_proxy(args.proxy)
+        print(f"代理: {args.proxy}")
+
+    use_cn = not args.no_cn
+    sources = build_sources(use_cn, args.lrclib, args.musixmatch)
+
+    if not sources:
+        print("错误: 未启用任何数据源")
+        sys.exit(1)
+
+    src_names = " / ".join(s[0] for s in sources)
+    print(f"数据源: {src_names}\n")
+
+    files = sorted(f for f in os.listdir(args.dir) if f.lower().endswith(AUDIO_EXT))
+    total = len(files)
+    if total == 0:
+        print("未找到音频文件")
+        sys.exit(0)
+
+    success, skip, fail = 0, 0, 0
+    fail_list = []
+
+    print(f"共 {total} 首歌曲，开始下载歌词...\n")
+
+    for i, filename in enumerate(files, 1):
+        filepath = os.path.join(args.dir, filename)
+        artist, title = parse_filename(filename)
+        lrc_path = os.path.join(args.dir, Path(filename).stem + ".lrc")
+
+        if os.path.exists(lrc_path):
+            print(f"[{i}/{total}] 跳过(已存在): {artist} - {title}")
+            skip += 1
+            continue
+
+        print(f"[{i}/{total}] {artist} - {title}", end=" ... ", flush=True)
+        status, src = download_one(filepath, sources)
+
+        if status == "ok":
+            print(f"OK ({src})")
+            success += 1
+        else:
+            print("失败")
+            fail += 1
+            fail_list.append(f"{artist} - {title}")
+
+        time.sleep(DELAY)
+
+    print(f"\n{'='*40}")
+    print(f"完成: 成功 {success} | 跳过 {skip} | 失败 {fail} | 共 {total}")
+
+    if fail_list:
+        print(f"\n失败列表 ({len(fail_list)} 首):")
+        for name in fail_list:
+            print(f"  - {name}")
+        fail_path = os.path.join(args.dir, "_lyrics_failed.txt")
+        with open(fail_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(fail_list))
+        print(f"\n失败列表已保存: {fail_path}")
+
+
+if __name__ == "__main__":
+    main()
