@@ -102,3 +102,7 @@ git push origin master
 - GitHub Fork 元数据：<https://api.github.com/repos/pikecode/OlibTauri>，2026-11-16 查询，parent 为 shiyi-0x7f/OlibTauri。
 
 这是一份经本项目配置与抓取验证的维护知识，不代表合并冲突、远程推送、云端 CI、真实账号与多平台发布均已通过。
+
+## 项目案例延伸
+
+- [[knowledge/OlibTauri的技术架构与业务产品思路]]。
