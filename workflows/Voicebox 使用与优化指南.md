@@ -34,6 +34,8 @@
 
 ### 服务与部署
 
+2026-11-18 归档：源码提交 `16716e8` 已推送到 `pikecode/voicebox` 的 `main`。这是代码归档，不是安装包发布；Vault 文档不包含在该提交内。推送账号问题与处理见 [[workflows/Git 同步与多账号配置]]。
+
 - 仓库：`/Users/ompeak/work/peak/voicebox`。
 - Python 环境：`~/.local/share/voicebox-dev/python`。
 - 本次源码服务运行于 `127.0.0.1:17493`，沿用原数据目录，前端开发端口 5173。

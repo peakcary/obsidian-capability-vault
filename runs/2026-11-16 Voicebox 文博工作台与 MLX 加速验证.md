@@ -79,3 +79,13 @@ tags:
 - [ ] 验证长稿、并发加载/卸载、0.6B 及其他平台回归。
 - [ ] 完善可重复的依赖安装与服务启动流程；当前独立环境并非完整引擎依赖集。
 - [ ] 正式发布前更新打包配置并验证冻结构建；已安装桌面应用不会自动获得源码改动。
+
+## 2026-11-18 代码归档与推送复核
+
+- 本次实现已提交：`16716e8`，`feat: add cultural narration workspace and MLX CustomVoice acceleration`。
+- 已推送至 [pikecode/voicebox 的提交](https://github.com/pikecode/voicebox/commit/16716e8)，分支 `main`。
+- 推送后本地 `main` 与 `origin/main` 同步，工作区干净。
+- 第一次推送因默认 `github.com` 使用 `peakcary` SSH 身份，被 `pikecode/voicebox` 拒绝。将本仓库 origin 改为 `git@github.com-pikecode:pikecode/voicebox.git` 后推送成功。
+- 仅修改 Voicebox 仓库的远程地址，未修改全局 GitHub SSH 身份；提交作者与认证账号是两回事。参见 [[workflows/Git 同步与多账号配置]]。
+- Obsidian 文件位于独立 Vault，不包含在 Voicebox 提交中；本次并未执行 Vault 的提交或推送。
+- 代码推送不等于发布安装包，不改变上文浏览器交互、试听和冻结构建的待验收状态。

@@ -68,3 +68,7 @@ tags: [project, NAS, deployment]
 - [ ] HEIC/RAW 预览、正式容器上线与受保护整理入口；真实照片实际回收尚未开放。
 
 实验入口：https://media.ompeak.com/photo-lab 。证据见 [[runs/2026-11-11-家庭媒体中心HTTPS与Docker交付]] 最新增量。
+
+## HolyArrs 候选评估（2026-11-18）
+
+已整理 [[knowledge/HolyArrs项目架构与绿联NAS部署价值评估]]。硬件与架构匹配，有持续追剧、找片和自动入库需求时再试点；尚未决定或执行部署。来源与边界见 [[runs/2026-11-18-HolyArrs部署评估知识整理]]。
