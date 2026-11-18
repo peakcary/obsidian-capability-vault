@@ -78,3 +78,18 @@ git clone git@github.com-peakcary:peakcary/obsidian-capability-vault.git
 Git 会保存笔记、模板、能力卡、执行记录和插件配置。`.gitignore` 排除工作区布局、缓存、系统临时文件和 `assets/audio/` 下的生成音频。音频需要长期保存时，应使用对象存储或 Git LFS，并在相关记录中保留地址、生成参数和校验信息。
 
 关联能力：[[capabilities/使用 Git 和 Obsidian Git 同步知识库]]
+
+## 实例：Voicebox 推送账号不匹配（2026-11-18）
+
+Voicebox 远程仓库归属 `pikecode`，但本机 `github.com` 默认 SSH 身份是 `peakcary`。直接推送时提示 `Permission to pikecode/voicebox.git denied to peakcary`。
+
+先检查 `git remote -v` 和已配置的 SSH Host 别名。确认存在 `github.com-pikecode` 后，在 **Voicebox 仓库目录**执行：
+
+```bash
+git remote set-url origin git@github.com-pikecode:pikecode/voicebox.git
+git push origin main
+```
+
+该操作只修改当前仓库的 origin，不修改本 Vault 的远程，也不改变全局 `github.com` 身份。不要为了修复认证失败更改提交作者，或使用强制推送。
+
+成功证据：Voicebox 提交 `16716e8` 已推送，详见 [[runs/2026-11-16 Voicebox 文博工作台与 MLX 加速验证]]。此例说明账号选择方式，不能据此假定新设备已经具备相同 SSH 配置。
